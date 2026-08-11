@@ -1,0 +1,56 @@
+{
+  "Bacterial Spot": {
+    "disease_name": "Bacterial Spot",
+    "description": "A bacterial disease that attacks leaves, stems and fruit.",
+    "symptoms": "Small dark, water-soaked spots on leaves; spots turn brown with a yellow halo; curled and yellowing leaves.",
+    "treatment": "Remove badly infected plants, water from the base (avoid wetting leaves), rotate crops, and use certified disease-free seeds."
+  },
+  "Early blight": {
+    "disease_name": "Early Blight",
+    "description": "A fungal disease caused by Alternaria solani, common in warm and humid weather.",
+    "symptoms": "Brown spots with concentric rings (target-like) on lower leaves; yellowing and leaf drop.",
+    "treatment": "Remove infected leaves, improve air flow between plants, mulch the soil, and water early in the day so leaves dry quickly."
+  },
+  "Late Blight": {
+    "disease_name": "Late Blight",
+    "description": "A serious fungal disease caused by Phytophthora infestans that spreads very quickly in wet weather.",
+    "symptoms": "Large greasy-looking dark blotches on leaves and stems; white mold on the underside of leaves; rotting fruit.",
+    "treatment": "Remove and burn infected plants, avoid overhead watering, keep the foliage dry, and do not compost infected material."
+  },
+  "Leaf Mold": {
+    "disease_name": "Leaf Mold",
+    "description": "A fungal disease (Passalora fulva) that develops in warm, humid greenhouses.",
+    "symptoms": "Pale yellow spots on upper leaves; olive-green to brown fuzzy mold on leaf undersides.",
+    "treatment": "Improve ventilation and reduce humidity, water early in the day, and remove infected lower leaves."
+  },
+  "Healthy": {
+    "disease_name": "Healthy Plant",
+    "description": "The plant shows no visible signs of disease.",
+    "symptoms": "None - the leaves are a uniform green without spots, discoloration or wilting.",
+    "treatment": "No treatment needed. Continue normal care: regular watering, sunlight and balanced fertilizer."
+  },
+  "Potato___Early_blight": {
+    "disease_name": "Potato Early Blight",
+    "description": "A common fungal disease of potatoes caused by Alternaria solani.",
+    "symptoms": "Dark brown spots with concentric rings on older leaves; yellowing leaves around the spots.",
+    "treatment": "Remove infected foliage, avoid overhead watering, rotate potatoes with other crops, and remove plant debris after harvest."
+  },
+  "Potato___Late_blight": {
+    "disease_name": "Potato Late Blight",
+    "description": "The fungal disease (Phytophthora infestans) that caused the Irish potato famine.",
+    "symptoms": "Dark water-soaked blotches on leaves and stems; white mold on leaf undersides; decayed tubers.",
+    "treatment": "Remove infected plants immediately, destroy plant debris, avoid wet foliage, and store harvested potatoes in a cool dry place."
+  },
+  "Potato___healthy": {
+    "disease_name": "Healthy Potato Plant",
+    "description": "The plant shows no visible signs of disease.",
+    "symptoms": "None - the leaves are a uniform green without spots, discoloration or wilting.",
+    "treatment": "No treatment needed. Continue normal care: regular watering, sunlight and balanced fertilizer."
+  },
+  "Pepper__bell___Bacterial_spot": {
+    "disease_name": "Bell Pepper Bacterial Spot",
+    "description": "A bacterial disease affecting pepper leaves and fruit, spread by water splash.",
+    "symptoms": "Small dark spots on leaves that later turn brown; spots on fruit and leaf drop.",
+    "treatment": "Remove infected plants, water at the base, rotate crops, and avoid working in the field when plants are wet."
+  }
+}

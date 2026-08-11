@@ -1,0 +1,14 @@
+# Keep this folder in the repository even when it is empty.
+# Put your dataset here BEFORE running train.py.
+#
+# Structure (one folder per class/disease):
+#   dataset/
+#       Tomato___Early_blight/
+#           image1.jpg
+#           image2.jpg
+#       Tomato___Late_blight/
+#           image1.jpg
+#       Tomato___healthy/
+#           image1.jpg
+#
+# The class name is taken from the folder name automatically.

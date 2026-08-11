@@ -1,0 +1,8 @@
+{
+  "default": {
+    "disease_name": "Detected leaf condition",
+    "description": "No detailed information has been added for this class yet.",
+    "symptoms": "Unknown - add this information in disease_info.json to see it here.",
+    "treatment": "Ask a local agricultural expert before applying any treatment."
+  }
+}
