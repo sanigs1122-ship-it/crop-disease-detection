@@ -1,5 +1,5 @@
 """
-evaluate.py - Evaluates the trained model on the whole dataset.
+evaluate.py - Evaluates the trained model on its held-out validation split.
 
 It computes:
     - Accuracy
@@ -30,6 +30,8 @@ CLASS_NAMES_PATH = os.path.join("models", "class_names.json")
 RESULTS_DIR = "results"
 IMAGE_SIZE = (128, 128)
 BATCH_SIZE = 32
+VALIDATION_SPLIT = 0.2
+SEED = 42
 
 
 def load_model_and_class_names():
@@ -51,17 +53,19 @@ def load_model_and_class_names():
     return model, class_names
 
 
-def load_full_dataset(class_names):
+def load_validation_dataset(class_names):
     """
-    Load ALL images (no validation split) so the model is tested
-    on every image available in the dataset folder.
+    Load the same held-out image-level split used during model training.
     """
     ds = image_dataset_from_directory(
         DATASET_DIR,
+        validation_split=VALIDATION_SPLIT,
+        subset="validation",
+        seed=SEED,
         image_size=IMAGE_SIZE,
         batch_size=BATCH_SIZE,
         label_mode="int",
-        shuffle=False,          # keep folder order so labels line up with file order
+        shuffle=True,
         class_names=class_names,
     )
     return ds
@@ -79,7 +83,7 @@ def plot_confusion_matrix(cm, class_names):
     ax.set(xticks=ticks, yticks=ticks,
            xticklabels=class_names, yticklabels=class_names,
            xlabel="Predicted label", ylabel="True label",
-           title="Confusion Matrix")
+           title="Validation Confusion Matrix")
 
     # Rotate class name labels so long names are readable
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
@@ -114,18 +118,25 @@ def main():
     print("\n[1/3] Loading model and class names...")
     model, class_names = load_model_and_class_names()
 
-    # 2. Load full dataset and predict
-    print("\n[2/3] Loading full dataset and making predictions...")
-    ds = load_full_dataset(class_names)
+    # 2. Evaluate only on the held-out images selected by train.py.
+    print("\n[2/3] Loading held-out 20% validation split and making predictions...")
+    ds = load_validation_dataset(class_names)
 
-    y_true = np.concatenate([y.numpy() for _, y in ds], axis=0)
-    probabilities = model.predict(ds, verbose=0)
-    y_pred = np.argmax(probabilities, axis=1)
+    # The dataset is shuffled, so read labels and predictions in the same
+    # pass. Iterating twice would reshuffle the examples and misalign metrics.
+    true_batches = []
+    predicted_batches = []
+    for images, labels in ds:
+        probabilities = model(images, training=False).numpy()
+        true_batches.append(labels.numpy())
+        predicted_batches.append(np.argmax(probabilities, axis=1))
+    y_true = np.concatenate(true_batches, axis=0)
+    y_pred = np.concatenate(predicted_batches, axis=0)
 
     # 3. Metrics
     print("\n[3/3] Computing metrics...")
     accuracy = accuracy_score(y_true, y_pred)
-    print(f"\nOverall Accuracy: {accuracy:.2%}")
+    print(f"\nValidation Accuracy: {accuracy:.2%}")
 
     report = classification_report(y_true, y_pred, target_names=class_names, digits=4)
     print("\nClassification Report:")
@@ -135,7 +146,7 @@ def main():
     os.makedirs(RESULTS_DIR, exist_ok=True)
     report_path = os.path.join(RESULTS_DIR, "classification_report.txt")
     with open(report_path, "w") as f:
-        f.write(f"Overall Accuracy: {accuracy:.2%}\n\n")
+        f.write(f"Validation Accuracy: {accuracy:.2%}\n\n")
         f.write(report)
     print(f"Report saved to: {report_path}")
 

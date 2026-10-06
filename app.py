@@ -16,6 +16,7 @@ has been redesigned (styles live in styles.css, icons in utils/ui.py).
 
 import json
 import os
+import sys
 import textwrap
 
 import numpy as np
@@ -29,8 +30,10 @@ from utils.ui import (footer_section, hero_art, icon, logo,
                       model_status_card, sidebar_brand)
 
 # ------------------------- Paths -------------------------
+DATASET_DIR = "dataset"
 MODEL_PATH = os.path.join("models", "crop_disease_model.keras")
 CLASS_NAMES_PATH = os.path.join("models", "class_names.json")
+VALIDATION_REPORT_PATH = os.path.join("results", "classification_report.txt")
 DISEASE_INFO_PATH = "disease_info.json"
 DISEASE_INFO_DEFAULT = "disease_info_default.json"
 
@@ -68,6 +71,53 @@ def load_disease_info():
     return {}
 
 
+def print_validation_accuracy_on_startup():
+    """Print the latest evaluated model accuracy once to the app terminal."""
+    if st.session_state.get("_validation_accuracy_logged", False):
+        return
+
+    def terminal(message=""):
+        print(message, file=sys.stderr, flush=True)
+
+    terminal("\n" + "=" * 60)
+    terminal("CropAI model validation summary")
+    report_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), VALIDATION_REPORT_PATH)
+    model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), MODEL_PATH)
+
+    if not os.path.isfile(report_path):
+        terminal("Validation accuracy is not available yet.")
+        terminal("Run `python evaluate.py` from the project folder to calculate it.")
+    elif os.path.isfile(model_path) and os.path.getmtime(report_path) < os.path.getmtime(model_path):
+        terminal("The saved accuracy report is older than the current model.")
+        terminal("Run `python evaluate.py` to refresh the validation accuracy.")
+    else:
+        with open(report_path, encoding="utf-8") as report_file:
+            accuracy_line = report_file.readline().strip()
+        terminal(accuracy_line or "Validation accuracy report is empty.")
+        terminal("Metric: held-out image validation split; this is not prediction confidence.")
+
+    terminal("Recalculate any time with: python evaluate.py")
+    terminal("=" * 60 + "\n")
+    st.session_state["_validation_accuracy_logged"] = True
+
+
+def dataset_snapshot():
+    """Return live image totals for the folder-based training dataset."""
+    class_counts = {}
+    if not os.path.isdir(DATASET_DIR):
+        return class_counts, 0
+
+    for class_name in sorted(os.listdir(DATASET_DIR)):
+        class_path = os.path.join(DATASET_DIR, class_name)
+        if not os.path.isdir(class_path):
+            continue
+        class_counts[class_name] = sum(
+            1 for filename in os.listdir(class_path)
+            if filename.lower().endswith((".jpg", ".jpeg", ".png"))
+        )
+    return class_counts, sum(class_counts.values())
+
+
 # ------------------------- Styling -------------------------
 def load_css():
     """Inject the shared stylesheet (styles.css) into the app."""
@@ -88,15 +138,9 @@ def html(markup):
 
 def page_intro(eyebrow_text, title, subtitle):
     """Standard page header: eyebrow pill + large title + subtitle."""
-    html(
-        f"""
-        <div class="page-enter">
-          <span class="eyebrow">{eyebrow_text}</span>
-          <div class="page-title">{title}</div>
-          <p class="page-sub">{subtitle}</p>
-        </div>
-        """
-    )
+    html(f'<span class="eyebrow">{eyebrow_text}</span>')
+    st.header(title)
+    html(f'<p class="page-subtitle">{subtitle}</p>')
 
 
 def section_title(title, subtitle=""):
@@ -113,8 +157,8 @@ def show_missing_model_message():
         <div class="pane">
           <h3>How to fix this</h3>
           <p>Place your dataset inside the <code>dataset/</code> folder, one folder per class, e.g.:</p>
-          <p><code>dataset/Tomato___Early_blight/image1.jpg</code><br>
-             <code>dataset/Tomato___healthy/image1.jpg</code></p>
+          <p><code>dataset/Early_blight/image1.jpg</code><br>
+             <code>dataset/healthy/image1.jpg</code></p>
           <p>Then train the model by running <code>python train.py</code> which automatically
              creates <code>models/crop_disease_model.keras</code> and
              <code>models/class_names.json</code>. Finally restart this app.</p>
@@ -125,49 +169,59 @@ def show_missing_model_message():
 
 # ------------------------- Home page -------------------------
 def home_page():
-    eyebrow = '<span class="eyebrow">AI Crop Health Platform</span>'
-    hero_html = f"""
-    <div class="page-enter">
-      <div class="hero-side">
-        {eyebrow}
-        <h1>AI-Powered <span class="accent">Crop Disease</span> Detection</h1>
-        <p class="hero-lead">Detect crop diseases quickly using Deep Learning and Computer Vision.</p>
-        <p class="hero-desc">
-          CropAI is a smart agriculture platform that analyses photos of plant
-          leaves with a Convolutional Neural Network and tells you — in seconds —
-          whether the crop is healthy or showing signs of disease, along with
-          prevention advice.
-        </p>
-      </div>
-    </div>
-    """
-    html(hero_html)
+    html(
+        '<div class="project-strip"><span>COMPUTER VISION RESEARCH PROJECT</span>'
+        '<span>MODEL DEMONSTRATION</span></div>'
+    )
+    html('<span class="eyebrow">PLANT HEALTH · DEEP LEARNING</span>')
+    st.header("AI Crop Disease Detection")
+    html(
+        '<p class="page-subtitle">CropAI is a computer-vision project that classifies four common '
+        'leaf conditions from an image. Explore the training dataset, model '
+        'workflow and an AI-generated prediction in one place.</p>'
+    )
 
     col_left, col_right = st.columns([1, 1], gap="large")
     with col_left:
         if st.button("Start Detection →", type="primary", key="cta_home", use_container_width=True):
             st.session_state["nav_pending"] = "Disease Detection"
             st.rerun()
-        if st.button("How it works", key="cta_about", use_container_width=True):
+        if st.button("View project methodology", key="cta_about", use_container_width=True):
             st.session_state["nav_pending"] = "About"
             st.rerun()
         html(
             """
-            <p class="hero-note">Upload a leaf photo • No expert knowledge needed • Instant AI analysis</p>
+            <p class="hero-note">Research prototype · Image-based classification · Educational use</p>
             """
         )
     with col_right:
         html(f'<div class="hero-art">{hero_art()}</div>')
 
-    # --- Feature cards ---
-    section_title("Why CropAI", "Deep learning in service of modern agriculture")
+    # --- Dataset and model facts ---
+    class_counts, total_images = dataset_snapshot()
+    section_title("Project at a glance", "Current training scope and model configuration")
+    stats = [
+        (f"{total_images:,}", "Training images"),
+        (str(len([count for count in class_counts.values() if count > 0])), "Leaf classes"),
+        ("128 × 128", "Model input size"),
+        ("MobileNetV2", "Feature extractor"),
+    ]
+    stat_items = "".join(
+        f'<div class="stat-item"><div class="stat-value">{value}</div>'
+        f'<div class="stat-label">{label}</div></div>'
+        for value, label in stats
+    )
+    html(f'<div class="stats-band">{stat_items}</div>')
+
+    # --- Workflow cards ---
+    section_title("How the analysis works", "A clear, repeatable image-classification workflow")
     features = [
-        ("chip", "AI-Powered",
-         "A Convolutional Neural Network classifies leaf images with image-based pattern recognition."),
-        ("bolt", "Fast Detection",
-         "Upload a leaf photo and receive a disease prediction with confidence in seconds."),
-        ("leaf", "Smart Agriculture",
-         "Continuous AI-assisted crop health monitoring for farmers, students and researchers."),
+        ("eye", "Image preparation",
+         "A JPG, JPEG or PNG leaf photo is decoded, converted to RGB and resized to 128 × 128 pixels."),
+        ("chip", "Visual feature extraction",
+         "A MobileNetV2 backbone initialized with ImageNet weights extracts visual patterns."),
+        ("activity", "Four-class prediction",
+         "A trained classification head estimates probabilities for four leaf-condition classes."),
     ]
     cards = ""
     for name, title, desc in features:
@@ -182,41 +236,11 @@ def home_page():
         )
     html(f'<div class="cards-grid">{cards}</div>')
 
-    # --- Capability highlights (no fake numbers) ---
     html(
         """
-        <div class="stats-band">
-          <div class="stat-item">
-            <div class="stat-value">CNN</div>
-            <div class="stat-label">Deep Learning Model</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value">Real-Time</div>
-            <div class="stat-label">Image Prediction</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value">Multiple</div>
-            <div class="stat-label">Disease Classes</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value">AI</div>
-            <div class="stat-label">Computer Vision</div>
-          </div>
-        </div>
-        """
-    )
-
-    # --- Why it matters ---
-    html(
-        """
-        <div class="pane">
-          <h3>Why it matters</h3>
-          <p>
-            Plant diseases cause massive crop losses every year. Early detection is the
-            best defence — diseases are caught before they spread across a whole field,
-            farmers do not need expert knowledge to get a first reliable diagnosis, and
-            the analysis is fast, free and runs entirely on a regular computer.
-          </p>
+        <div class="project-note">
+          <div class="project-note-mark">i</div>
+          <div><strong>Research note</strong><p>PlantVillage images were collected under controlled conditions. Results on field photos may differ; predictions are educational and should be checked by an agricultural expert.</p></div>
         </div>
         """
     )
@@ -262,8 +286,8 @@ def detection_page():
             """
             <div class="pane">
               <p>Drag &amp; drop a leaf photo above or click <b>Browse files</b> to get
-                 started. The image is analyzed locally by the trained CNN model — no data
-                 leaves your computer.</p>
+                 started. The image is processed by the trained CNN model running with
+                 this app.</p>
             </div>
             """
         )
@@ -351,6 +375,14 @@ def detection_page():
     render_prediction(st.session_state.prediction)
 
 
+def readable_class_name(class_name):
+    """Turn a dataset folder label into a compact name for the interface."""
+    label = class_name.rsplit("___", 1)[-1].replace("_", " ").strip()
+    if label.lower() == "healthy":
+        return "Healthy"
+    return label.title()
+
+
 def render_prediction(pred):
     """Premium result dashboard driven entirely by the real model output."""
     disease_name = pred["disease_name"]
@@ -379,15 +411,15 @@ def render_prediction(pred):
             '<span class="status-chip diseased"><span class="pulse"></span>'
             f'{icon("activity", 14)} Disease detected</span>'
         )
-        title = disease_name
-        subtitle = f"Predicted class: {disease_name}"
+        title = readable_class_name(disease_name)
+        subtitle = f"Predicted class: {title}"
 
     # --- Progress bars for every class (from real probabilities) ---
     order = np.argsort(probabilities)[::-1]
     class_rows = ""
     for idx in order:
         prob = float(probabilities[idx])
-        name = class_names[idx]
+        name = readable_class_name(class_names[idx])
         best = "best" if idx == order[0] else ""
         class_rows += textwrap.dedent(
             f"""
@@ -440,7 +472,13 @@ def render_prediction(pred):
     html(result_html)
 
     # --- Disease information from disease_info.json ---
-    info = load_disease_info().get(disease_name) or load_disease_info().get("default")
+    info_data = load_disease_info()
+    readable_name = readable_class_name(disease_name)
+    info = next(
+        (value for key, value in info_data.items()
+         if key.casefold() in {disease_name.casefold(), readable_name.casefold()}),
+        info_data.get("default"),
+    )
     if info:
         info_html = f"""
         <div class="info-cards">
@@ -479,8 +517,8 @@ def render_prediction(pred):
 def about_page():
     page_intro(
         "Project Documentation",
-        "About CropAI",
-        "A deep learning web application for early crop disease detection — built for research, education and smart farming.",
+        "Project methodology",
+        "A four-class plant-leaf image classifier built with TensorFlow, Keras and transfer learning.",
     )
 
     html(
@@ -488,24 +526,50 @@ def about_page():
         <div class="pane">
           <h3>Project Overview</h3>
           <p>
-            <b>CropAI</b> is an AI-based crop disease detection platform that classifies
-            leaf images as healthy or diseased using a Convolutional Neural Network (CNN)
-            built with TensorFlow/Keras. Farmers, students and researchers upload a simple
-            photo of a crop leaf; the model analyzes it and returns the predicted condition
-            together with a confidence score and practical prevention advice.
+            <b>CropAI</b> is an educational computer-vision project for leaf-condition
+            classification. A MobileNetV2 feature extractor and a task-specific
+            classification head predict one of four supported classes. The app returns
+            the highest-scoring class, probability distribution and reference information.
           </p>
         </div>
         """
     )
+
+    class_counts, total_images = dataset_snapshot()
+    section_title("Training dataset", "Image counts currently available to the training script")
+    rows = "".join(
+        f'<tr><td>{readable_class_name(name)}</td><td>{count:,}</td></tr>'
+        for name, count in class_counts.items()
+    )
+    html(
+        f"""
+        <div class="pane dataset-panel">
+          <table class="dataset-table">
+            <thead><tr><th>Leaf class</th><th>Images</th></tr></thead>
+            <tbody>{rows}<tr class="dataset-total"><td>Total</td><td>{total_images:,}</td></tr></tbody>
+          </table>
+          <p class="source-note">Dataset: <a href="https://github.com/spMohanty/PlantVillage-Dataset" target="_blank" rel="noopener">PlantVillage color images</a> · Study: <a href="https://doi.org/10.3389/fpls.2016.01419" target="_blank" rel="noopener">Mohanty et al. (2016)</a>. Controlled-background photos may not reflect field conditions.</p>
+        </div>
+        """
+    )
+
+    history_path = os.path.join("results", "training_history.png")
+    if os.path.isfile(history_path):
+        section_title("Training history", "Training and validation curves from the latest model run")
+        st.image(
+            history_path,
+            caption="Recorded by train.py. Validation curves use the randomized image-level split.",
+            use_column_width="always",
+        )
 
     # --- How it works ---
     section_title("How it works", "From upload to result in five steps")
     steps = [
         ("Upload Image", "A leaf photo is uploaded in JPG, JPEG or PNG format."),
         ("Image Preprocessing", "The image is resized to 128×128 and converted to RGB."),
-        ("CNN Analysis", "The trained convolutional neural network extracts visual features."),
-        ("Disease Classification", "Softmax probabilities rank every known class."),
-        ("Prediction Result", "The top class, confidence and care advice are shown."),
+        ("Feature Extraction", "ImageNet-initialized MobileNetV2 extracts visual features."),
+        ("Class Scoring", "A task-specific head scores four leaf-condition classes."),
+        ("Prediction Result", "The highest-scoring class and reference information are shown."),
     ]
     items = ""
     for i, (title, desc) in enumerate(steps, start=1):
@@ -526,11 +590,11 @@ def about_page():
     section_title("Technology Stack", "The tools behind the platform")
     techs = [
         ("code", "Python", "Core language for training, prediction and the web app."),
-        ("braces", "TensorFlow", "End-to-end deep learning framework powering the CNN."),
-        ("layers", "Keras", "High-level API used to build and train the model."),
-        ("network", "CNN", "Convolutional architecture for visual pattern recognition."),
-        ("eye", "OpenCV", "Additional computer-vision image processing support."),
-        ("waves", "Streamlit", "Rapidly built, interactive Python web interface."),
+        ("braces", "TensorFlow / Keras", "Builds, trains and serves the image classifier."),
+        ("network", "MobileNetV2", "ImageNet-initialized CNN used for feature extraction."),
+        ("eye", "Pillow", "Decodes uploaded photos and prepares RGB model inputs."),
+        ("activity", "Scikit-learn", "Computes evaluation metrics and the confusion matrix."),
+        ("waves", "Streamlit", "Interactive interface for the project demonstration."),
     ]
     cards = ""
     for name, title, desc in techs:
@@ -580,7 +644,7 @@ def about_page():
 
 # ------------------------- App entry -------------------------
 st.set_page_config(
-    page_title="CropAI — Smart Crop Health Detection",
+    page_title="AI Crop Disease Detection | CropAI",
     page_icon=(
         "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'"
         " fill='none'%3E%3Cpath d='M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8"
@@ -591,6 +655,7 @@ st.set_page_config(
 )
 
 load_css()
+print_validation_accuracy_on_startup()
 
 # Apply a queued navigation request (from a CTA button) before the sidebar
 # radio widget is instantiated — writing to "nav" after that point raises

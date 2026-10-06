@@ -3,12 +3,12 @@
 #
 # Structure (one folder per class/disease):
 #   dataset/
-#       Tomato___Early_blight/
+#       Early_blight/
 #           image1.jpg
 #           image2.jpg
-#       Tomato___Late_blight/
+#       Late_blight/
 #           image1.jpg
-#       Tomato___healthy/
+#       healthy/
 #           image1.jpg
 #
 # The class name is taken from the folder name automatically.

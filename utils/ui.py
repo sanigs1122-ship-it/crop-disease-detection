@@ -175,7 +175,7 @@ def sidebar_brand():
       <div class="logo">{logo(26)}</div>
       <div>
         <div class="brand-name">CropAI</div>
-        <div class="brand-sub">Smart Crop Health Detection</div>
+        <div class="brand-sub">Plant Health Intelligence</div>
       </div>
     </div>
     <div class="sidebar-divider"></div>
@@ -187,7 +187,7 @@ def model_status_card(loaded):
     if loaded:
         return (
             '<div class="model-status ok"><span class="dot"></span>'
-            "CNN model ready &amp; loaded</div>"
+            "Trained classifier loaded</div>"
         )
     return (
         '<div class="model-status warn"><span class="dot"></span>'
@@ -201,8 +201,8 @@ def footer_section():
     return f"""
     <div class="footer">
       <div class="f-brand">{logo(22, "#1b7a3d")} CropAI</div>
-      <div class="f-tag">AI-Based Crop Disease Detection</div>
-      <div class="f-power">{bolt} Powered by Deep Learning &amp; Computer Vision</div>
+      <div class="f-tag">Leaf disease classification · Research prototype</div>
+      <div class="f-power">{bolt} TensorFlow · MobileNetV2 · Streamlit</div>
       <div class="f-disclaimer">
         Educational project for research &amp; demonstration. Always confirm AI
         diagnoses with a local agricultural expert before applying treatments.

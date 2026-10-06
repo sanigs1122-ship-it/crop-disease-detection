@@ -1,10 +1,10 @@
-# 🌱 AI-Based Crop Disease Detection Using Deep Learning
+# AI Crop Disease Detection with Deep Learning (CropAI)
 
-A complete deep learning web application that detects crop diseases from a
-simple photo of a plant leaf. The user uploads an image, and a trained
-**Convolutional Neural Network (CNN)** built with **TensorFlow/Keras**
-classifies it as healthy or identifies the disease, along with a confidence
-percentage and simple prevention advice.
+CropAI is a Streamlit app for AI-powered crop disease detection from plant leaf
+photos. It uses a **TensorFlow/Keras convolutional neural network (CNN)** to
+classify supported crop conditions and show a confidence score with prevention
+guidance. This educational project is intended for learning and research;
+predictions are not a substitute for advice from an agricultural expert.
 
 Built for beginners and suitable for a college final-year project.
 
@@ -30,7 +30,7 @@ Built for beginners and suitable for a college final-year project.
 |---|---|
 | Deep learning model | TensorFlow / Keras |
 | Web application | Streamlit |
-| Image loading / processing | Pillow, OpenCV |
+| Image loading / processing | Pillow |
 | Numeric operations | NumPy |
 | Data handling | Pandas |
 | Graphs & metrics | Matplotlib, scikit-learn |
@@ -99,6 +99,18 @@ dataset/
 - A public dataset that matches this structure exactly is the
   **PlantVillage dataset** (e.g. from Kaggle).
 
+This project currently includes **6,644 images across four leaf-condition classes**:
+bacterial spot (2,134), early blight (1,009), late blight (1,908), and healthy
+(1,593). The added color images are from the [PlantVillage dataset repository](https://github.com/spMohanty/PlantVillage-Dataset);
+source details and a citation are in [dataset/README.md](dataset/README.md).
+PlantVillage was collected under controlled conditions, so validation results
+on this dataset do not establish performance on field photographs. Training
+uses a random image-level validation split; it is not an independent field test.
+To fetch the selected images again on another checkout, run
+`python download_plantvillage.py`. The downloaded image files stay local and
+are excluded from Git; the source, counts and citation are documented in
+`dataset/README.md`.
+
 ---
 
 ## 🛠️ Installation
@@ -146,9 +158,12 @@ dataset/
    - `models/class_names.json` - the class names
    - `results/training_history.png` - accuracy and loss graphs
 
-The CNN uses an input size of **128×128×3**, includes data augmentation,
-Conv2D + ReLU + MaxPooling layers, dropout, flatten, dense and a softmax
-output with a number of classes automatically taken from the dataset folders.
+The classifier uses **MobileNetV2** initialized with ImageNet weights as a
+frozen feature extractor, followed by global average pooling and a small dense
+classification head. Training applies random flips, rotations and zoom to
+training images. The input size is **128×128×3**, and output classes are read
+from the dataset folders. The 80/20 split is a random image-level validation
+split from this dataset; it is not an independent field test.
 
 ---
 
@@ -158,8 +173,9 @@ output with a number of classes automatically taken from the dataset folders.
 python evaluate.py
 ```
 
-This prints the overall accuracy, a per-class classification report
-(precision, recall, F1-score) and saves:
+This evaluates the same held-out 20% image-level validation split used during
+training, prints validation accuracy and per-class precision, recall and F1,
+and saves:
 - `results/confusion_matrix.png`
 - `results/classification_report.txt`
 
@@ -175,7 +191,7 @@ Output example:
 
 ```
 PREDICTION RESULT
-Predicted disease : Crop___Early_blight
+Predicted disease : Early_blight
 Confidence        : 87.4%
 ```
 
@@ -188,6 +204,11 @@ streamlit run app.py
 ```
 
 Then open the URL shown in the terminal (usually http://localhost:8501).
+At startup, the terminal also prints the latest saved validation accuracy.
+To recalculate that metric for the current model at any time, run
+`python evaluate.py` from this project folder in the terminal of VS Code,
+PyCharm, or another Python IDE. This reports held-out dataset accuracy;
+individual image prediction confidence is a separate metric.
 
 - **Home** - project introduction
 - **Disease Detection** - upload a leaf image and click "Predict Disease"
@@ -196,6 +217,20 @@ Then open the URL shown in the terminal (usually http://localhost:8501).
 ⚠️ The app **does not retrain** the model on startup; it simply loads
 `models/crop_disease_model.keras`. If the model is missing, the app shows
 clear instructions instead of crashing.
+
+## 🌐 Search visibility when deployed
+
+For a public Streamlit Community Cloud deployment, set the app visibility to
+public and choose a descriptive custom subdomain such as
+`cropai-disease-detection`. The app sets a descriptive browser/search title and
+starts with readable text describing crop disease detection, the supported
+image workflow and the educational limitation of model predictions. Streamlit
+Community Cloud indexes public apps; search engines decide how and when to show
+them. A custom domain, if used, should be chosen before sharing the app URL.
+
+This repository does not include a `robots.txt` or `sitemap.xml`: those files
+must be served by the web host at the site's root, and Streamlit apps do not
+serve repository files there as static website routes.
 
 ---
 
