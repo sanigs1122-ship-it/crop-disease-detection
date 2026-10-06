@@ -10,7 +10,7 @@ pandas==2.2.2
 
 # Images
 pillow==10.4.0
-opencv-python==4.10.0.84
+opencv-python-headless==4.10.0.84
 
 # Graphs and metrics
 matplotlib==3.9.0
