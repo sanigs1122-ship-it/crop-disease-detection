@@ -20,9 +20,12 @@ import numpy as np
 import tensorflow as tf
 
 from utils.preprocessing import load_and_preprocess_image
+from utils.ood import (build_feature_extractor, check_supported_input,
+                       load_ood_reference)
 
 MODEL_PATH = os.path.join("models", "crop_disease_model.keras")
 CLASS_NAMES_PATH = os.path.join("models", "class_names.json")
+OOD_REFERENCE_PATH = os.path.join("models", "ood_reference.json")
 
 
 def load_model_and_class_names():
@@ -76,6 +79,21 @@ def main():
 
     model, class_names = load_model_and_class_names()
     disease_name, confidence, probabilities = predict_image(model, class_names, args.image_path)
+    label_key = disease_name.rsplit("___", 1)[-1].casefold().replace("-", "_").replace(" ", "_")
+    is_unknown = label_key in {
+        "not_a_leaf", "non_leaf", "other", "unknown",
+    }
+    if not is_unknown:
+        reference = load_ood_reference(OOD_REFERENCE_PATH)
+        if reference is not None:
+            image_batch = load_and_preprocess_image(args.image_path)
+            accepted, _, _, _ = check_supported_input(
+                build_feature_extractor(model), image_batch, class_names, reference
+            )
+            is_unknown = not accepted
+    if is_unknown:
+        disease_name = "Not_a_leaf"
+        confidence = 0.0
 
     print("=" * 50)
     print("PREDICTION RESULT")
@@ -83,13 +101,20 @@ def main():
     print(f"Predicted disease : {disease_name}")
     print(f"Confidence        : {confidence:.1%}")
 
-    print("\nAll class probabilities:")
-    for name, prob in zip(class_names, probabilities):
-        print(f"  {name:30s} {prob:.1%}")
+    if not is_unknown:
+        print("\nAll class probabilities:")
+        for name, prob in zip(class_names, probabilities):
+            print(f"  {name:30s} {prob:.1%}")
 
     healthy = any("healthy" in c.lower() for c in class_names)
-    status = "HEALTHY" if healthy and "healthy" in disease_name.lower() else "DISEASED"
+    status = (
+        "NOT A LEAF / UNSUPPORTED INPUT" if is_unknown
+        else "HEALTHY" if healthy and "healthy" in disease_name.lower()
+        else "DISEASED"
+    )
     print(f"\nStatus: {status}")
+    if is_unknown:
+        print("Please upload a clear photo of a plant leaf.")
 
 
 if __name__ == "__main__":

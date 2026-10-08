@@ -901,6 +901,26 @@ section[data-testid="stSidebar"] [role="radiogroup"] label > div:first-child > d
     line-height: 1.6;
     margin: 0;
 }
+.info-card .management-list {
+    margin: 0;
+    padding-left: 1.15rem;
+    color: var(--muted);
+    font-size: 0.88rem;
+    line-height: 1.6;
+}
+.info-card .management-list li + li {
+    margin-top: 0.5rem;
+}
+.info-card .management-source {
+    margin-top: 0.9rem;
+    font-size: 0.76rem;
+}
+.info-card .management-source a {
+    color: var(--green-700);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
 
 /* ---------- Callout / info (always readable on light surfaces) ---------- */
 [data-testid="stAlert"] {
@@ -1098,3 +1118,253 @@ section[data-testid="stSidebar"] [role="radiogroup"] label > div:first-child > d
 ::-webkit-scrollbar { width: 10px; }
 ::-webkit-scrollbar-thumb { background: #cfe6d8; border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: #a8d4ba; }
+
+/* ============================================================
+   Final visual polish
+   ============================================================ */
+:root {
+    --green-900: #12382e;
+    --green-800: #1b5141;
+    --green-700: #26705a;
+    --green-600: #32876b;
+    --green-500: #4cae86;
+    --green-400: #82c9a5;
+    --green-100: #e5f4eb;
+    --green-50: #f3f9f5;
+    --ink: #172923;
+    --muted: #60746b;
+    --bg: #f5f7f3;
+    --line: #e0e9e2;
+    --shadow-sm: 0 5px 18px rgba(20, 55, 42, 0.055);
+    --shadow-md: 0 14px 34px rgba(20, 55, 42, 0.085);
+    --shadow-lg: 0 22px 48px rgba(20, 55, 42, 0.13);
+    --radius: 20px;
+    --radius-sm: 13px;
+}
+
+.stApp {
+    background-color: #edf3ee;
+    background-image:
+        linear-gradient(112deg, rgba(247, 250, 247, 0.78) 0%, rgba(247, 250, 247, 0.65) 44%, rgba(247, 250, 247, 0.42) 100%),
+        url("/app/static/cropai-botanical-bg.png");
+    background-position: center center;
+    background-size: cover;
+    background-attachment: fixed;
+}
+
+[data-testid="stMainBlockContainer"] {
+    max-width: 1260px;
+    padding-top: clamp(1.7rem, 4vw, 3rem);
+    padding-bottom: 4rem;
+}
+
+section[data-testid="stSidebar"] {
+    background:
+        radial-gradient(ellipse 300px 240px at 100% 0%, rgba(76, 174, 134, 0.16), transparent 75%),
+        linear-gradient(180deg, #153a30 0%, #102d25 100%);
+    border-right: 1px solid rgba(171, 213, 190, 0.16);
+    box-shadow: 8px 0 32px rgba(14, 43, 34, 0.08);
+}
+
+.sidebar-brand .logo {
+    border-radius: 16px;
+    background: linear-gradient(145deg, #4eaf86, #277258);
+    box-shadow: 0 8px 20px rgba(4, 24, 17, 0.24), inset 0 1px rgba(255, 255, 255, 0.26);
+}
+
+section[data-testid="stSidebar"] [role="radiogroup"] label {
+    border: 1px solid transparent;
+    transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+section[data-testid="stSidebar"] [role="radiogroup"] label:hover {
+    transform: translateX(2px);
+    background: rgba(111, 180, 145, 0.13);
+}
+section[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {
+    background: linear-gradient(100deg, rgba(66, 139, 106, 0.42), rgba(66, 139, 106, 0.17));
+    border-color: rgba(161, 219, 185, 0.2);
+    box-shadow: inset 3px 0 #8bd3aa;
+}
+
+.project-strip {
+    border-bottom-color: #d8e4db;
+    color: #718078;
+}
+.eyebrow {
+    background: linear-gradient(120deg, #e7f5eb, #f6faf6);
+    border-color: #d4e9da;
+    box-shadow: 0 3px 10px rgba(37, 112, 90, 0.05);
+}
+main [data-testid="stHeading"] h2 {
+    font-size: clamp(2.15rem, 4.8vw, 3.25rem);
+    letter-spacing: -0.045em;
+    line-height: 1.04;
+}
+.page-subtitle {
+    max-width: 700px;
+    font-size: 1.04rem;
+}
+.section-head {
+    margin-top: 2.8rem;
+    font-size: clamp(1.45rem, 2.4vw, 1.8rem);
+    letter-spacing: -0.035em;
+}
+
+.stButton > button,
+[data-testid="stBaseButton-primary"],
+[data-testid="stBaseButton-secondary"] {
+    min-height: 3rem;
+    border-radius: 14px !important;
+}
+.stButton > button[data-testid="baseButton-primary"],
+[data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg, #32876b, #4cae86) !important;
+    box-shadow: 0 9px 22px rgba(37, 112, 90, 0.22), inset 0 1px rgba(255, 255, 255, 0.2) !important;
+}
+.stButton > button:focus-visible,
+[data-testid="stFileUploaderDropzone"] button:focus-visible {
+    outline: 3px solid rgba(76, 174, 134, 0.55) !important;
+    outline-offset: 3px;
+}
+
+.hero-art,
+.feature-card,
+.pane,
+.result-card,
+.info-card,
+.footer {
+    border-color: rgba(255, 255, 255, 0.78);
+    box-shadow: 0 12px 32px rgba(24, 63, 47, 0.085);
+    backdrop-filter: blur(14px) saturate(125%);
+    -webkit-backdrop-filter: blur(14px) saturate(125%);
+}
+.hero-art {
+    min-height: 100%;
+    background: rgba(248, 252, 248, 0.63);
+    border-radius: 24px;
+}
+.pane,
+.result-card,
+.info-card,
+.footer {
+    background: rgba(255, 255, 255, 0.78);
+}
+.feature-card {
+    position: relative;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.77);
+    border-radius: 20px;
+    padding: 1.6rem;
+    transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+.feature-card::after {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 3px;
+    background: linear-gradient(90deg, #32876b, #a6d9b8);
+    opacity: 0.85;
+}
+.feature-card:hover {
+    transform: translateY(-4px);
+    border-color: #c3dfcb;
+    box-shadow: var(--shadow-md);
+}
+.feature-card .icon-badge {
+    border-radius: 16px;
+    background: linear-gradient(145deg, #e5f4eb, #f4faf5);
+    border-color: #d3ead9;
+}
+.stats-band {
+    background:
+        radial-gradient(ellipse at 90% 0%, rgba(126, 201, 164, 0.19), transparent 60%),
+        linear-gradient(110deg, #163d32, #1e5744);
+    border-color: rgba(151, 204, 170, 0.22);
+    border-radius: 22px;
+    box-shadow: 0 16px 32px rgba(18, 56, 46, 0.16);
+}
+.project-note {
+    background: linear-gradient(120deg, #edf6ef, #f7faf6);
+    border-color: #dce9de;
+    border-radius: 16px;
+}
+
+[data-testid="stFileUploader"] {
+    background: rgba(255, 255, 255, 0.81);
+    border-color: #dce8df;
+    border-radius: 22px;
+    box-shadow: 0 12px 28px rgba(20, 55, 42, 0.07);
+    backdrop-filter: blur(14px) saturate(125%);
+    -webkit-backdrop-filter: blur(14px) saturate(125%);
+}
+[data-testid="stFileUploaderDropzone"] {
+    background: linear-gradient(145deg, #f3faf5, #ffffff 72%) !important;
+    border-color: #9bcdb0 !important;
+    border-radius: 18px !important;
+}
+[data-testid="stImage"] {
+    border-color: #dce8df;
+    border-radius: 18px;
+    box-shadow: 0 10px 24px rgba(20, 55, 42, 0.065);
+}
+
+.result-card {
+    border-radius: 22px;
+    box-shadow: 0 16px 38px rgba(20, 55, 42, 0.09);
+}
+.result-head.healthy {
+    background: linear-gradient(110deg, #21694f, #42a77c);
+}
+.result-head.diseased {
+    background: linear-gradient(110deg, #9a4a12, #ca7624);
+}
+.result-head.unknown {
+    background: linear-gradient(110deg, #516a60, #70877b);
+}
+.info-cards { gap: 1rem; }
+.info-card {
+    border-radius: 20px;
+    padding: 1.45rem;
+    transition: transform 180ms ease, box-shadow 180ms ease;
+}
+.info-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+.info-card .ic-head {
+    margin-bottom: 0.85rem;
+}
+.info-card .management-list li::marker { color: var(--green-600); }
+
+[data-testid="stAlert"] {
+    border-radius: 15px !important;
+    box-shadow: var(--shadow-sm);
+}
+.footer {
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.78);
+    padding: 2rem 1.7rem 1.55rem;
+}
+
+@media (max-width: 700px) {
+    .stApp { background-position: 64% center; }
+    [data-testid="stMainBlockContainer"] {
+        padding: 1.35rem 1rem 2.5rem;
+    }
+    .project-strip {
+        font-size: 0.59rem;
+        letter-spacing: 0.08em;
+    }
+    .stats-band { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .info-cards { grid-template-columns: 1fr; }
+    .feature-card:hover, .info-card:hover { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

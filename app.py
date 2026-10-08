@@ -26,6 +26,8 @@ from PIL import Image
 
 from utils.preprocessing import (is_supported_file,
                                  preprocess_uploaded_image)
+from utils.ood import (build_feature_extractor, check_supported_input,
+                       load_ood_reference as read_ood_reference)
 from utils.ui import (footer_section, hero_art, icon, logo,
                       model_status_card, sidebar_brand)
 
@@ -33,6 +35,7 @@ from utils.ui import (footer_section, hero_art, icon, logo,
 DATASET_DIR = "dataset"
 MODEL_PATH = os.path.join("models", "crop_disease_model.keras")
 CLASS_NAMES_PATH = os.path.join("models", "class_names.json")
+OOD_REFERENCE_PATH = os.path.join("models", "ood_reference.json")
 VALIDATION_REPORT_PATH = os.path.join("results", "classification_report.txt")
 DISEASE_INFO_PATH = "disease_info.json"
 DISEASE_INFO_DEFAULT = "disease_info_default.json"
@@ -50,6 +53,17 @@ def load_model():
     if not os.path.isfile(MODEL_PATH):
         return None
     return tf.keras.models.load_model(MODEL_PATH)
+
+
+@st.cache_resource(show_spinner=False)
+def load_feature_extractor():
+    model = load_model()
+    return build_feature_extractor(model) if model is not None else None
+
+
+@st.cache_resource(show_spinner=False)
+def load_ood_reference():
+    return read_ood_reference(OOD_REFERENCE_PATH)
 
 
 @st.cache_resource
@@ -133,7 +147,11 @@ def html(markup):
     The markup is dedented before rendering so that indented lines can never
     be interpreted by the Markdown parser as a code block.
     """
-    st.markdown(textwrap.dedent(markup), unsafe_allow_html=True)
+    markup = textwrap.dedent(markup)
+    # Keep HTML in one block so Markdown cannot reinterpret indented fragments
+    # or blank lines as literal code/text.
+    markup = " ".join(line.strip() for line in markup.splitlines() if line.strip())
+    st.markdown(markup, unsafe_allow_html=True)
 
 
 def page_intro(eyebrow_text, title, subtitle):
@@ -220,8 +238,8 @@ def home_page():
          "A JPG, JPEG or PNG leaf photo is decoded, converted to RGB and resized to 128 × 128 pixels."),
         ("chip", "Visual feature extraction",
          "A MobileNetV2 backbone initialized with ImageNet weights extracts visual patterns."),
-        ("activity", "Four-class prediction",
-         "A trained classification head estimates probabilities for four leaf-condition classes."),
+        ("activity", "Class prediction",
+         "The trained classification head scores the classes in its dataset; unrelated inputs need a trained Not_a_leaf class to be rejected."),
     ]
     cards = ""
     for name, title, desc in features:
@@ -359,6 +377,21 @@ def detection_page():
     best_index = int(np.argmax(probabilities))
     disease_name = class_names[best_index]
     confidence = float(probabilities[best_index])
+    unknown_key = disease_name.rsplit("___", 1)[-1].casefold().replace("-", "_").replace(" ", "_")
+    is_unknown = unknown_key in {
+        "not_a_leaf", "non_leaf", "other", "unknown",
+    }
+    if not is_unknown:
+        feature_extractor = load_feature_extractor()
+        reference = load_ood_reference()
+        if feature_extractor is not None and reference is not None:
+            accepted, _, _, _ = check_supported_input(
+                feature_extractor, image_batch, class_names, reference
+            )
+            is_unknown = not accepted
+    if is_unknown:
+        disease_name = "Not_a_leaf"
+        confidence = 0.0
 
     # Healthy/Diseased status: a class is treated as healthy if
     # its folder name contains the word "healthy".
@@ -368,6 +401,7 @@ def detection_page():
         "disease_name": disease_name,
         "confidence": confidence,
         "is_healthy": is_healthy,
+        "is_unknown": is_unknown,
         "probabilities": probabilities.tolist(),
         "class_names": class_names,
     }
@@ -388,6 +422,7 @@ def render_prediction(pred):
     disease_name = pred["disease_name"]
     confidence = pred["confidence"]
     is_healthy = pred["is_healthy"]
+    is_unknown = pred.get("is_unknown", False)
     probabilities = np.asarray(pred["probabilities"])
     class_names = pred["class_names"]
 
@@ -396,8 +431,16 @@ def render_prediction(pred):
     offset = max(0.0, min(circ, circ * (1.0 - confidence)))
     pct_clamped = max(0.0, min(1.0, confidence)) * 100.0
 
-    head_class = "healthy" if is_healthy else "diseased"
-    if is_healthy:
+    head_class = "healthy" if is_healthy else "unknown" if is_unknown else "diseased"
+    if is_unknown:
+        head_label = "Input Not Supported"
+        status_html = (
+            '<span class="status-chip"><span class="pulse"></span>'
+            f'{icon("info", 14)} Not a leaf</span>'
+        )
+        title = "Please upload a plant leaf"
+        subtitle = "This image was classified as outside the supported leaf-disease classes."
+    elif is_healthy:
         head_label = "Healthy Plant"
         status_html = (
             '<span class="status-chip healthy"><span class="pulse"></span>'
@@ -414,10 +457,30 @@ def render_prediction(pred):
         title = readable_class_name(disease_name)
         subtitle = f"Predicted class: {title}"
 
+    if is_unknown:
+        unknown_result_html = f"""
+        <div class="result-card">
+          <div class="result-head unknown">
+            <span>{icon("info", 14)} Input Not Supported</span>
+            <span>AI Input Check</span>
+          </div>
+          <div class="result-body">
+            <div class="result-main">
+              {status_html}
+              <div class="disease-name">{title}</div>
+              <div class="disease-sub">{subtitle}</div>
+            </div>
+          </div>
+        </div>
+        """
+        html(unknown_result_html)
+        st.info("This image did not match the supported leaf patterns. Upload a clear plant-leaf photo.")
+        return
+
     # --- Progress bars for every class (from real probabilities) ---
     order = np.argsort(probabilities)[::-1]
     class_rows = ""
-    for idx in order:
+    for idx in (order if not is_unknown else []):
         prob = float(probabilities[idx])
         name = readable_class_name(class_names[idx])
         best = "best" if idx == order[0] else ""
@@ -429,23 +492,13 @@ def render_prediction(pred):
             </div>
             """
         )
+    class_rows = textwrap.indent(class_rows.strip(), "      ") if class_rows else ""
 
-    result_html = f"""
-    <div class="result-card">
-      <div class="result-head {head_class}">
-        <span>{'▲' if not is_healthy else '●'} {head_label}</span>
-        <span>AI Prediction</span>
-      </div>
-      <div class="result-body">
-        <div class="result-main">
-          {status_html}
-          <div class="disease-name">{title}</div>
-          <div class="disease-sub">{subtitle}</div>
-          <div class="conf-bar">
-            <div class="bar-label"><span>Model Confidence</span><span>{pct}%</span></div>
-            <div class="bar"><div style="--w: {pct_clamped:.1f}%"></div></div>
-          </div>
-        </div>
+    if is_unknown:
+        confidence_panel = ""
+        confidence_bar = ""
+    else:
+        confidence_panel = textwrap.indent(textwrap.dedent(f"""
         <div class="confidence-wrap">
           <div class="confidence-ring">
             <svg width="168" height="168" viewBox="0 0 120 120">
@@ -465,11 +518,37 @@ def render_prediction(pred):
           </div>
           <div class="confidence-note">Confidence from the CNN’s softmax output</div>
         </div>
+        """).strip(), "        ")
+        confidence_bar = textwrap.indent(textwrap.dedent(f"""
+          <div class="conf-bar">
+            <div class="bar-label"><span>Model Confidence</span><span>{pct}%</span></div>
+            <div class="bar"><div style="--w: {pct_clamped:.1f}%"></div></div>
+          </div>
+        """).strip(), "        ")
+
+    result_html = f"""
+    <div class="result-card">
+      <div class="result-head {head_class}">
+        <span>{'i' if is_unknown else '▲' if not is_healthy else '●'} {head_label}</span>
+        <span>AI Prediction</span>
+      </div>
+      <div class="result-body">
+        <div class="result-main">
+          {status_html}
+          <div class="disease-name">{title}</div>
+          <div class="disease-sub">{subtitle}</div>
+          {confidence_bar}
+        </div>
+        {confidence_panel}
       </div>
       <div style="padding: 0 1.5rem 1.4rem;" class="class-bars">{class_rows}</div>
     </div>
     """
     html(result_html)
+
+    if is_unknown:
+        st.info("This image did not match the supported leaf patterns. Upload a clear plant-leaf photo.")
+        return
 
     # --- Disease information from disease_info.json ---
     info_data = load_disease_info()
@@ -480,6 +559,18 @@ def render_prediction(pred):
         info_data.get("default"),
     )
     if info:
+        treatment = info["treatment"]
+        if isinstance(treatment, list):
+            treatment_html = '<ul class="management-list">' + "".join(
+                f"<li>{item}</li>" for item in treatment
+            ) + "</ul>"
+        else:
+            treatment_html = f"<p>{treatment}</p>"
+        source_html = (
+            f'<p class="management-source">Guidance: '
+            f'<a href="{info["source"]}" target="_blank" rel="noopener">University of Minnesota Extension</a></p>'
+            if info.get("source") else ""
+        )
         info_html = f"""
         <div class="info-cards">
           <div class="info-card">
@@ -492,7 +583,8 @@ def render_prediction(pred):
           </div>
           <div class="info-card">
             <div class="ic-head">{icon("shield", 19)} Prevention &amp; Management</div>
-            <p>{info["treatment"]}</p>
+            {treatment_html}
+            {source_html}
           </div>
         </div>
         """
@@ -518,7 +610,7 @@ def about_page():
     page_intro(
         "Project Documentation",
         "Project methodology",
-        "A four-class plant-leaf image classifier built with TensorFlow, Keras and transfer learning.",
+        "A plant-leaf image classifier built with TensorFlow, Keras and transfer learning.",
     )
 
     html(
@@ -528,8 +620,10 @@ def about_page():
           <p>
             <b>CropAI</b> is an educational computer-vision project for leaf-condition
             classification. A MobileNetV2 feature extractor and a task-specific
-            classification head predict one of four supported classes. The app returns
-            the highest-scoring class, probability distribution and reference information.
+            classification head choose among the classes present during training.
+            Without a trained Not_a_leaf class, unrelated images can still receive
+            a disease label. The displayed softmax score is not proof that the image
+            is a leaf or that the diagnosis is correct.
           </p>
         </div>
         """
@@ -568,8 +662,8 @@ def about_page():
         ("Upload Image", "A leaf photo is uploaded in JPG, JPEG or PNG format."),
         ("Image Preprocessing", "The image is resized to 128×128 and converted to RGB."),
         ("Feature Extraction", "ImageNet-initialized MobileNetV2 extracts visual features."),
-        ("Class Scoring", "A task-specific head scores four leaf-condition classes."),
-        ("Prediction Result", "The highest-scoring class and reference information are shown."),
+        ("Class Scoring", "A task-specific head scores the classes used during training."),
+        ("Prediction Result", "The highest-scoring class and reference information are shown; a trained Not_a_leaf class is needed to reject unrelated photos."),
     ]
     items = ""
     for i, (title, desc) in enumerate(steps, start=1):

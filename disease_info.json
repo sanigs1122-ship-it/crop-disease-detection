@@ -3,19 +3,40 @@
     "disease_name": "Bacterial Spot",
     "description": "A bacterial disease that attacks leaves, stems and fruit.",
     "symptoms": "Small dark, water-soaked spots on leaves; spots turn brown with a yellow halo; curled and yellowing leaves.",
-    "treatment": "Remove badly infected plants, water from the base (avoid wetting leaves), rotate crops, and use certified disease-free seeds."
+    "treatment": [
+      "Start with clean, reputable seed and inspect transplants before planting. Remove visibly spotted transplants.",
+      "Water the soil at the base of the plant with drip or a soaker hose. Water in the morning and avoid overhead watering so leaves dry quickly.",
+      "Use mulch to limit soil splash, and stake or space plants to improve airflow. Avoid pruning or handling plants while foliage is wet.",
+      "Remove spotted leaves when plants are dry, bag infected debris, and clean pruning tools before moving to healthy plants. Do not compost diseased material unless your compost process reliably heats it.",
+      "Rotate away from tomato and related crops for several seasons, and remove volunteer plants and crop debris. Ask a local extension service about resistant varieties and locally appropriate control options; bacterial spot can resemble other leaf diseases."
+    ],
+    "source": "https://extension.umn.edu/agriculture/specialty-crops/vegetable-farming/disease-management/bacterial-spot-of-tomato-and-pepper"
   },
   "Early blight": {
     "disease_name": "Early Blight",
     "description": "A fungal disease caused by Alternaria solani, common in warm and humid weather.",
     "symptoms": "Brown spots with concentric rings (target-like) on lower leaves; yellowing and leaf drop.",
-    "treatment": "Remove infected leaves, improve air flow between plants, mulch the soil, and water early in the day so leaves dry quickly."
+    "treatment": [
+      "Cover the soil with straw, fabric, or another suitable mulch to reduce spores splashing onto lower leaves.",
+      "Water at soil level in the morning. Stake or trellis plants, space them for airflow, and control weeds so foliage dries faster.",
+      "Remove spotted lower leaves when plants are dry and sanitize tools afterward. Avoid removing more than about one-third of a plant's foliage at once; discard infected debris rather than leaving it near the crop.",
+      "Use clean transplants and rotate tomatoes and related crops out of the same area for at least two seasons where practical. Consider varieties with early-blight resistance or tolerance.",
+      "Early blight marks cannot be cured. Many home gardens can be managed with cultural practices; if considering a fungicide, confirm the diagnosis and follow local guidance and the product label."
+    ],
+    "source": "https://extension.umn.edu/agriculture/specialty-crops/vegetable-farming/disease-management/early-blight-in-tomato-and-potato"
   },
   "Late Blight": {
     "disease_name": "Late Blight",
     "description": "A serious fungal disease caused by Phytophthora infestans that spreads very quickly in wet weather.",
     "symptoms": "Large greasy-looking dark blotches on leaves and stems; white mold on the underside of leaves; rotting fruit.",
-    "treatment": "Remove and burn infected plants, avoid overhead watering, keep the foliage dry, and do not compost infected material."
+    "treatment": [
+      "Late blight can spread quickly. If it is suspected, contact a local plant diagnostic clinic or agricultural extension service promptly because several leaf problems look similar.",
+      "Keep foliage dry: water at soil level, preferably in the morning, and improve spacing and airflow. Avoid working among plants while they are wet.",
+      "If only a small amount of tissue is affected, remove it carefully when dry and contain it for disposal. For severely affected plants, follow local extension or waste-disposal guidance for removing the whole plant; do not leave infected debris in the garden or compost it.",
+      "Inspect nearby tomato and potato plants, and remove volunteer plants and cull piles that could maintain the disease. Resistant varieties can reduce risk but are not completely immune.",
+      "Control options depend on local conditions and product registration. Do not rely on a spray to cure existing lesions; use products only when locally recommended, labeled for the crop, and exactly as directed."
+    ],
+    "source": "https://extension.umn.edu/agriculture/specialty-crops/vegetable-farming/disease-management/late-blight"
   },
   "Leaf Mold": {
     "disease_name": "Leaf Mold",
@@ -27,7 +48,13 @@
     "disease_name": "Healthy Plant",
     "description": "The plant shows no visible signs of disease.",
     "symptoms": "None - the leaves are a uniform green without spots, discoloration or wilting.",
-    "treatment": "No treatment needed. Continue normal care: regular watering, sunlight and balanced fertilizer."
+    "treatment": [
+      "No disease treatment is indicated by this image. Continue consistent watering at soil level and avoid keeping foliage wet for long periods.",
+      "Maintain airflow with suitable plant spacing and support, keep weeds under control, and use mulch to reduce soil splash.",
+      "Inspect plants regularly and remove old crop debris after harvest. Rotate crops where practical.",
+      "Use fertilizer according to soil needs and product directions; excess fertilizer does not prevent disease. If symptoms develop, get a diagnosis before applying a pesticide."
+    ],
+    "source": "https://extension.umn.edu/garden-and-home/yard-and-garden/yard-and-garden-problems/managing-plant-diseases-home-garden"
   },
   "Potato___Early_blight": {
     "disease_name": "Potato Early Blight",

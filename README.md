@@ -93,6 +93,13 @@ dataset/
 
 - The **folder name becomes the class name** automatically.
 - Any class whose name contains **"healthy"** is treated as the healthy class.
+- To teach the model to reject unrelated photos, add a `Not_a_leaf/` folder
+  containing varied non-leaf images (such as cars, animals, people, buildings,
+  and objects), then retrain with `python train.py`. The folder must contain
+  images; an empty folder cannot create a trained rejection class. The app also
+  uses a feature-distance check calibrated from the existing leaf classes.
+- Keep separate non-leaf photos out of training and use them to check rejection
+  after retraining. The model's confidence does not guarantee an image is a leaf.
 - Supported image formats: JPG, JPEG, PNG.
 - Recommended: at least **50–100 images per class** for a decent model.
   (You can start experimenting with as few as 10 per class.)
@@ -106,6 +113,10 @@ source details and a citation are in [dataset/README.md](dataset/README.md).
 PlantVillage was collected under controlled conditions, so validation results
 on this dataset do not establish performance on field photographs. Training
 uses a random image-level validation split; it is not an independent field test.
+The included dataset has no `Not_a_leaf` class. The app uses a calibrated
+feature-distance check to reject images that are unlike the supported leaf
+classes; adding varied `Not_a_leaf` examples and retraining can strengthen that
+behavior.
 To fetch the selected images again on another checkout, run
 `python download_plantvillage.py`. The downloaded image files stay local and
 are excluded from Git; the source, counts and citation are documented in
@@ -154,16 +165,20 @@ are excluded from Git; the source, counts and citation are documented in
    ```
 
 3. When training finishes you will have:
-   - `models/crop_disease_model.keras` - the trained CNN
-   - `models/class_names.json` - the class names
-   - `results/training_history.png` - accuracy and loss graphs
+- `models/crop_disease_model.keras` - the trained CNN
+- `models/class_names.json` - the class names
+- `models/ood_reference.json` - feature prototypes and rejection thresholds
+- `results/training_history.png` - accuracy and loss graphs
 
 The classifier uses **MobileNetV2** initialized with ImageNet weights as a
 frozen feature extractor, followed by global average pooling and a small dense
 classification head. Training applies random flips, rotations and zoom to
 training images. The input size is **128×128×3**, and output classes are read
 from the dataset folders. The 80/20 split is a random image-level validation
-split from this dataset; it is not an independent field test.
+split from this dataset; it is not an independent field test. During training,
+the app also calibrates an input rejection threshold from the pooled MobileNetV2
+features of held-out images. Run `python calibrate_ood.py` to regenerate that
+reference for an already-trained model.
 
 ---
 

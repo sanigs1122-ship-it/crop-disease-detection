@@ -30,6 +30,7 @@ from tensorflow.keras import layers, models
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.utils import image_dataset_from_directory
+from utils.ood import calibrate_ood_reference
 
 # ------------------------- Configuration -------------------------
 DATASET_DIR = "dataset"
@@ -37,6 +38,7 @@ MODEL_DIR = "models"
 RESULTS_DIR = "results"
 MODEL_PATH = os.path.join(MODEL_DIR, "crop_disease_model.keras")
 CLASS_NAMES_PATH = os.path.join(MODEL_DIR, "class_names.json")
+OOD_REFERENCE_PATH = os.path.join(MODEL_DIR, "ood_reference.json")
 
 IMAGE_SIZE = (128, 128)          # width, height (must match utils/preprocessing.py)
 BATCH_SIZE = 16
@@ -238,6 +240,19 @@ def main():
     with open(CLASS_NAMES_PATH, "w") as f:
         json.dump(class_names, f, indent=4)
     print(f"Class names saved to: {CLASS_NAMES_PATH}")
+
+    print("Calibrating the non-leaf input rejection check...")
+    calibrate_ood_reference(
+        model,
+        DATASET_DIR,
+        class_names,
+        OOD_REFERENCE_PATH,
+        image_size=IMAGE_SIZE,
+        batch_size=BATCH_SIZE,
+        validation_split=VALIDATION_SPLIT,
+        seed=SEED,
+    )
+    print(f"Input rejection reference saved to: {OOD_REFERENCE_PATH}")
 
     plot_training_history(history)
 
