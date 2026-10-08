@@ -1146,7 +1146,7 @@ section[data-testid="stSidebar"] [role="radiogroup"] label > div:first-child > d
     background-color: #edf3ee;
     background-image:
         linear-gradient(112deg, rgba(247, 250, 247, 0.78) 0%, rgba(247, 250, 247, 0.65) 44%, rgba(247, 250, 247, 0.42) 100%),
-        url("/app/static/cropai-botanical-bg.png");
+        url("https://raw.githubusercontent.com/sanigs1122-ship-it/crop-disease-detection/main/static/cropai-botanical-bg.png");
     background-position: center center;
     background-size: cover;
     background-attachment: fixed;
