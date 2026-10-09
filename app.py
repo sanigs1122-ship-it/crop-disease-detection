@@ -9,11 +9,12 @@ Pages (sidebar navigation):
     2. Disease Detection- upload a leaf image and get a prediction
     3. About            - project documentation, workflow and tech stack
 
-All prediction logic is unchanged: the same cached CNN model, preprocessing
-pipeline and disease_info.json lookup are used as before. Only the UI layer
-has been redesigned (styles live in styles.css, icons in utils/ui.py).
+The app uses the cached CNN model, shared image preprocessing, and disease
+information from disease_info.json. Styles live in styles.css and icons in
+utils/ui.py.
 """
 
+import hashlib
 import json
 import os
 import sys
@@ -22,9 +23,9 @@ import textwrap
 import numpy as np
 import streamlit as st
 import tensorflow as tf
-from PIL import Image
 
 from utils.preprocessing import (is_supported_file,
+                                 decode_uploaded_image,
                                  preprocess_uploaded_image)
 from utils.ood import (build_feature_extractor, check_supported_input,
                        load_ood_reference as read_ood_reference)
@@ -32,10 +33,12 @@ from utils.ui import (footer_section, hero_art, icon, logo,
                       model_status_card, sidebar_brand)
 
 # ------------------------- Paths -------------------------
-DATASET_DIR = "dataset"
+DATASET_DIR = "plantvillage_dataset"
+LEGACY_DATASET_DIR = "dataset"
 MODEL_PATH = os.path.join("models", "crop_disease_model.keras")
 CLASS_NAMES_PATH = os.path.join("models", "class_names.json")
 OOD_REFERENCE_PATH = os.path.join("models", "ood_reference.json")
+DATASET_METADATA_PATH = os.path.join("models", "dataset_metadata.json")
 VALIDATION_REPORT_PATH = os.path.join("results", "classification_report.txt")
 DISEASE_INFO_PATH = "disease_info.json"
 DISEASE_INFO_DEFAULT = "disease_info_default.json"
@@ -116,19 +119,33 @@ def print_validation_accuracy_on_startup():
 
 
 def dataset_snapshot():
-    """Return live image totals for the folder-based training dataset."""
-    class_counts = {}
-    if not os.path.isdir(DATASET_DIR):
-        return class_counts, 0
+    """Return image counts from the trained model's dataset metadata."""
+    if os.path.isfile(DATASET_METADATA_PATH):
+        try:
+            with open(DATASET_METADATA_PATH, encoding="utf-8") as metadata_file:
+                metadata = json.load(metadata_file)
+            counts = metadata.get("image_counts", {})
+            return counts, int(metadata.get("total_images", sum(counts.values())))
+        except (OSError, ValueError, TypeError):
+            pass
 
-    for class_name in sorted(os.listdir(DATASET_DIR)):
-        class_path = os.path.join(DATASET_DIR, class_name)
-        if not os.path.isdir(class_path):
+    # Read a locally downloaded dataset when no model metadata is available.
+    class_counts = {}
+    for root in (DATASET_DIR, LEGACY_DATASET_DIR):
+        if not os.path.isdir(root):
             continue
-        class_counts[class_name] = sum(
-            1 for filename in os.listdir(class_path)
-            if filename.lower().endswith((".jpg", ".jpeg", ".png"))
-        )
+        for class_name in sorted(os.listdir(root)):
+            class_path = os.path.join(root, class_name)
+            if not os.path.isdir(class_path):
+                continue
+            count = sum(
+                1 for filename in os.listdir(class_path)
+                if filename.lower().endswith((".jpg", ".jpeg", ".png"))
+            )
+            if count:
+                class_counts[class_name] = count
+        if class_counts:
+            break
     return class_counts, sum(class_counts.values())
 
 
@@ -174,10 +191,8 @@ def show_missing_model_message():
         """
         <div class="pane">
           <h3>How to fix this</h3>
-          <p>Place your dataset inside the <code>dataset/</code> folder, one folder per class, e.g.:</p>
-          <p><code>dataset/Early_blight/image1.jpg</code><br>
-             <code>dataset/healthy/image1.jpg</code></p>
-          <p>Then train the model by running <code>python train.py</code> which automatically
+          <p>Download all PlantVillage crop/disease classes with <code>python download_plantvillage.py</code>.</p>
+          <p>Then train the model by running <code>python train.py</code>, which automatically
              creates <code>models/crop_disease_model.keras</code> and
              <code>models/class_names.json</code>. Finally restart this app.</p>
         </div>
@@ -193,9 +208,20 @@ def home_page():
     )
     html('<span class="eyebrow">PLANT HEALTH · DEEP LEARNING</span>')
     st.header("AI Crop Disease Detection")
+    class_names = load_class_names()
+    crop_names = {
+        name.split("___", 1)[0].replace("_", " ").strip()
+        for name in class_names if "___" in name
+    }
+    scope = (
+        f"The current model covers {len(class_names)} crop/disease classes"
+        + (f" across {len(crop_names)} crops" if crop_names else "")
+        + "."
+        if class_names else "The model's supported classes are read from its training dataset."
+    )
     html(
-        '<p class="page-subtitle">CropAI is a computer-vision project that classifies four common '
-        'leaf conditions from an image. Explore the training dataset, model '
+        f'<p class="page-subtitle">CropAI analyzes plant-leaf photos using a trained '
+        f'computer-vision model. {scope} Explore the training dataset, model '
         'workflow and an AI-generated prediction in one place.</p>'
     )
 
@@ -218,11 +244,15 @@ def home_page():
     # --- Dataset and model facts ---
     class_counts, total_images = dataset_snapshot()
     section_title("Project at a glance", "Current training scope and model configuration")
+    class_names = load_class_names()
+    crop_count = len({name.split("___", 1)[0] for name in class_names if "___" in name})
+    if class_names and not crop_count:
+        crop_count = 1  # The legacy four classes are all tomato conditions.
     stats = [
         (f"{total_images:,}", "Training images"),
-        (str(len([count for count in class_counts.values() if count > 0])), "Leaf classes"),
+        (str(len(class_names)), "Crop/disease classes"),
+        (str(crop_count), "Crop types"),
         ("128 × 128", "Model input size"),
-        ("MobileNetV2", "Feature extractor"),
     ]
     stat_items = "".join(
         f'<div class="stat-item"><div class="stat-value">{value}</div>'
@@ -235,11 +265,11 @@ def home_page():
     section_title("How the analysis works", "A clear, repeatable image-classification workflow")
     features = [
         ("eye", "Image preparation",
-         "A JPG, JPEG or PNG leaf photo is decoded, converted to RGB and resized to 128 × 128 pixels."),
+         "JPG, JPEG and PNG images at different resolutions are orientation-corrected, converted to RGB and resized to 128 × 128 pixels."),
         ("chip", "Visual feature extraction",
          "A MobileNetV2 backbone initialized with ImageNet weights extracts visual patterns."),
         ("activity", "Class prediction",
-         "The trained classification head scores the classes in its dataset; unrelated inputs need a trained Not_a_leaf class to be rejected."),
+         "The trained classifier predicts among its crop/disease classes; a feature-distance check flags some images outside those classes."),
     ]
     cards = ""
     for name, title, desc in features:
@@ -269,7 +299,7 @@ def detection_page():
     page_intro(
         "Disease Detection",
         "Diagnose your crop in seconds",
-        "Run a single AI analysis on a clear photo of a plant leaf.",
+        "Analyze a clear leaf photo from a crop represented in the supported dataset.",
     )
 
     model = load_model()
@@ -288,7 +318,7 @@ def detection_page():
         """
         <div class="upload-head">
           <div class="upload-title">Upload Crop Leaf Image</div>
-          <p class="upload-sub">Upload a clear image of a crop leaf to analyze its health.</p>
+          <p class="upload-sub">Upload a clear photo of a plant leaf for crop and disease classification.</p>
         </div>
         """
     )
@@ -306,6 +336,7 @@ def detection_page():
               <p>Drag &amp; drop a leaf photo above or click <b>Browse files</b> to get
                  started. The image is processed by the trained CNN model running with
                  this app.</p>
+              <p class="source-note">The model recognizes the crop and disease classes represented in PlantVillage. Other plants or conditions may be unsupported.</p>
             </div>
             """
         )
@@ -319,26 +350,29 @@ def detection_page():
         )
         return
 
+    image_bytes = uploaded_file.getvalue()
+    image_fingerprint = hashlib.sha256(image_bytes).hexdigest()
+
     # --- Try to decode the image (catches corrupted / fake files) ---
     try:
-        display_image = Image.open(uploaded_file).convert("RGB")
-        display_image.verify()  # quick integrity check
-    except Exception as err:
-        st.error(f"Could not read the image file: **{uploaded_file.name}**. Please try another image.")
+        display_image = decode_uploaded_image(image_bytes)
+    except Exception:
+        st.error(
+            f"Could not decode **{uploaded_file.name}**. Please upload a valid, "
+            "non-corrupted JPG, JPEG or PNG image."
+        )
         return
-    # Need to reopen after verify() since it clears the file state
-    uploaded_file.seek(0)
 
     # --- Reset stale results when a new image is uploaded ---
     st.session_state.setdefault("last_analyzed", None)
-    if uploaded_file.name != st.session_state.last_analyzed:
+    if image_fingerprint != st.session_state.last_analyzed:
         st.session_state.last_analyzed = None
         st.session_state.pop("prediction", None)
 
     # --- Preview + analyze ---
     col_img, col_act = st.columns([1, 1], gap="large")
     with col_img:
-        st.image(uploaded_file, use_column_width="always")
+        st.image(display_image, use_column_width="always")
         html(
             f'<div class="file-name">{icon("leaf", 13)} {uploaded_file.name}</div>'
         )
@@ -347,8 +381,8 @@ def detection_page():
             """
             <div class="pane" style="margin-top:1.5rem; display:flex; flex-direction:column; gap:0.85rem;">
               <h3 style="margin-bottom:0">Ready to analyze</h3>
-              <p>Your image has been preprocessed to the size expected by the CNN
-                 (128 × 128) and is ready for prediction.</p>
+              <p>Images of different resolutions are converted to RGB and resized
+                 to the model input size (128 × 128) before prediction.</p>
             </div>
             """
         )
@@ -356,7 +390,7 @@ def detection_page():
 
     if not analyze:
         # Keep showing the last result for the current image across reruns.
-        if st.session_state.get("prediction") and st.session_state.last_analyzed == uploaded_file.name:
+        if st.session_state.get("prediction") and st.session_state.last_analyzed == image_fingerprint:
             render_prediction(st.session_state.prediction)
         return
 
@@ -364,7 +398,7 @@ def detection_page():
     with st.spinner("Running CNN analysis — this may take a few seconds..."):
         try:
             # --- Preprocess: same resize (128x128) as training ---
-            image_batch = preprocess_uploaded_image(uploaded_file)
+            image_batch = preprocess_uploaded_image(image_bytes)
 
             # --- Predict ---
             probabilities = model.predict(image_batch, verbose=0)[0]
@@ -396,7 +430,7 @@ def detection_page():
     # Healthy/Diseased status: a class is treated as healthy if
     # its folder name contains the word "healthy".
     is_healthy = "healthy" in disease_name.lower()
-    st.session_state.last_analyzed = uploaded_file.name
+    st.session_state.last_analyzed = image_fingerprint
     st.session_state.prediction = {
         "disease_name": disease_name,
         "confidence": confidence,
@@ -410,9 +444,17 @@ def detection_page():
 
 
 def readable_class_name(class_name):
-    """Turn a dataset folder label into a compact name for the interface."""
-    label = class_name.rsplit("___", 1)[-1].replace("_", " ").strip()
-    if label.lower() == "healthy":
+    """Format a PlantVillage crop/disease folder label for display."""
+    if "___" in class_name:
+        crop_name, condition = class_name.split("___", 1)
+        crop_name = crop_name.replace("_", " ").strip()
+        condition = condition.replace("_", " ").strip()
+        if condition.casefold() == "healthy":
+            return f"Healthy {crop_name.title()}"
+        return f"{crop_name.title()} · {condition.title()}"
+
+    label = class_name.replace("_", " ").strip()
+    if label.casefold() == "healthy":
         return "Healthy"
     return label.title()
 
@@ -436,10 +478,10 @@ def render_prediction(pred):
         head_label = "Input Not Supported"
         status_html = (
             '<span class="status-chip"><span class="pulse"></span>'
-            f'{icon("info", 14)} Not a leaf</span>'
+            f'{icon("info", 14)} Not supported</span>'
         )
-        title = "Please upload a plant leaf"
-        subtitle = "This image was classified as outside the supported leaf-disease classes."
+        title = "Unsupported image"
+        subtitle = "This image did not match the crop and disease classes supported by the model."
     elif is_healthy:
         head_label = "Healthy Plant"
         status_html = (
@@ -513,15 +555,15 @@ def render_prediction(pred):
             </svg>
             <div class="confidence-center">
               <div class="pct">{pct}%</div>
-              <div class="pct-label">Confidence</div>
+              <div class="pct-label">Model score</div>
             </div>
           </div>
-          <div class="confidence-note">Confidence from the CNN’s softmax output</div>
+          <div class="confidence-note">CNN score; it does not guarantee the prediction is correct</div>
         </div>
         """).strip(), "        ")
         confidence_bar = textwrap.indent(textwrap.dedent(f"""
           <div class="conf-bar">
-            <div class="bar-label"><span>Model Confidence</span><span>{pct}%</span></div>
+            <div class="bar-label"><span>Model score</span><span>{pct}%</span></div>
             <div class="bar"><div style="--w: {pct_clamped:.1f}%"></div></div>
           </div>
         """).strip(), "        ")
@@ -553,9 +595,15 @@ def render_prediction(pred):
     # --- Disease information from disease_info.json ---
     info_data = load_disease_info()
     readable_name = readable_class_name(disease_name)
+    disease_label = disease_name.rsplit("___", 1)[-1].replace("_", " ").strip()
+    disease_candidates = {
+        disease_name.casefold(),
+        readable_name.casefold(),
+        disease_label.casefold(),
+    }
     info = next(
         (value for key, value in info_data.items()
-         if key.casefold() in {disease_name.casefold(), readable_name.casefold()}),
+         if key.casefold() in disease_candidates),
         info_data.get("default"),
     )
     if info:
@@ -618,12 +666,12 @@ def about_page():
         <div class="pane">
           <h3>Project Overview</h3>
           <p>
-            <b>CropAI</b> is an educational computer-vision project for leaf-condition
-            classification. A MobileNetV2 feature extractor and a task-specific
-            classification head choose among the classes present during training.
-            Without a trained Not_a_leaf class, unrelated images can still receive
-            a disease label. The displayed softmax score is not proof that the image
-            is a leaf or that the diagnosis is correct.
+            <b>CropAI</b> is an educational computer-vision project for crop and
+            leaf-condition classification. A MobileNetV2 feature extractor and a
+            task-specific classification head choose among the PlantVillage classes
+            used during training. Images outside those classes can still receive a
+            closest-match label; the displayed softmax score does not prove that a
+            crop or disease identification is correct.
           </p>
         </div>
         """
@@ -660,10 +708,10 @@ def about_page():
     section_title("How it works", "From upload to result in five steps")
     steps = [
         ("Upload Image", "A leaf photo is uploaded in JPG, JPEG or PNG format."),
-        ("Image Preprocessing", "The image is resized to 128×128 and converted to RGB."),
+        ("Image Preprocessing", "Images at different resolutions are converted to RGB and resized to 128×128."),
         ("Feature Extraction", "ImageNet-initialized MobileNetV2 extracts visual features."),
         ("Class Scoring", "A task-specific head scores the classes used during training."),
-        ("Prediction Result", "The highest-scoring class and reference information are shown; a trained Not_a_leaf class is needed to reject unrelated photos."),
+        ("Prediction Result", "The highest-scoring crop/disease class and its reference information are shown; out-of-scope photo rejection is not guaranteed."),
     ]
     items = ""
     for i, (title, desc) in enumerate(steps, start=1):
@@ -714,7 +762,7 @@ def about_page():
             <li><code>evaluate.py</code> — accuracy, precision, recall, F1-score and confusion matrix.</li>
             <li><code>app.py</code> — the Streamlit web app (Home / Detection / About).</li>
             <li><code>utils/preprocessing.py</code> — shared image preprocessing (128×128 resize).</li>
-            <li><code>dataset/</code> — one folder per class; a class name containing “healthy” is the healthy class.</li>
+            <li><code>plantvillage_dataset/</code> — downloaded PlantVillage images, one folder per crop/disease class (excluded from Git).</li>
             <li><code>models/</code> — trained model (<code>crop_disease_model.keras</code>) and class names.</li>
             <li><code>results/</code> — graphs, reports and confusion-matrix images.</li>
           </ul>

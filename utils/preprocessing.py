@@ -45,12 +45,30 @@ def load_and_preprocess_image(image_path, target_size=DEFAULT_IMAGE_SIZE):
     return _to_model_input(pil_image, target_size)
 
 
+def decode_uploaded_image(image_bytes):
+    """
+    Decode raw image bytes into an RGB PIL Image for display.
+
+    Args:
+        image_bytes (bytes): raw bytes of a JPG/JPEG/PNG image.
+
+    Returns:
+        PIL.Image.Image in RGB mode.
+
+    Raises:
+        Exception: if the bytes cannot be decoded as a valid image.
+    """
+    pil_image = Image.open(io.BytesIO(image_bytes))
+    pil_image.load()  # forces a full decode so corrupt files raise an error here
+    return pil_image.convert("RGB")
+
+
 def preprocess_uploaded_image(uploaded_file, target_size=DEFAULT_IMAGE_SIZE):
     """
     Prepare an image uploaded through the Streamlit file uploader.
 
     Args:
-        uploaded_file: the file-like object returned by st.file_uploader.
+        uploaded_file: raw bytes or a file-like object from st.file_uploader.
         target_size (tuple): (width, height) expected by the CNN.
 
     Returns:
@@ -59,8 +77,11 @@ def preprocess_uploaded_image(uploaded_file, target_size=DEFAULT_IMAGE_SIZE):
     Raises:
         ValueError: if the file is not a valid image.
     """
-    # uploaded_file.read() returns bytes -> wrap in BytesIO so PIL can open it.
-    pil_image = Image.open(io.BytesIO(uploaded_file.read()))
+    if isinstance(uploaded_file, (bytes, bytearray)):
+        raw = uploaded_file
+    else:
+        raw = uploaded_file.read()
+    pil_image = Image.open(io.BytesIO(raw))
     pil_image.load()  # forces a full decode so corrupt files raise an error here
     return _to_model_input(pil_image, target_size)
 
